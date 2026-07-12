@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Bot Dashboard</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="login-body">
+  <div class="login-box">
+    <h1>Bot Dashboard</h1>
+    <% if (typeof error !== 'undefined') { %>
+      <div class="login-error"><%= error %></div>
+    <% } %>
+    <form method="POST" action="/login">
+      <input type="password" name="password" placeholder="Admin password" required autofocus>
+      <button type="submit">Login</button>
+    </form>
+  </div>
+</body>
+</html>

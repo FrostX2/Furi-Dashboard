@@ -1,0 +1,322 @@
+<% function fmt(seconds) {
+  const d = Math.floor(seconds / 86400), h = Math.floor((seconds % 86400) / 3600), m = Math.floor((seconds % 3600) / 60), s = Math.floor(seconds % 60);
+  const p = [];
+  if (d) p.push(d + 'd');
+  if (h) p.push(h + 'h');
+  if (m) p.push(m + 'm');
+  p.push(s + 's');
+  return p.join(' ');
+} %>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bot Dashboard</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="layout">
+    <nav class="sidebar">
+      <div class="sidebar-brand">Bot Dashboard</div>
+      <div class="sidebar-nav">
+        <button class="tab-btn active" data-tab="overview">📊 Overview</button>
+        <button class="tab-btn" data-tab="servers">🖥 Servers</button>
+        <button class="tab-btn" data-tab="music">🎵 Music</button>
+        <button class="tab-btn" data-tab="settings">⚙ Settings</button>
+        <button class="tab-btn" data-tab="invite">🔗 Invite</button>
+      </div>
+      <div class="sidebar-footer">
+        <span class="update-badge" id="lastUpdate">Loading...</span>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <div class="tab-content active" id="tab-overview">
+        <h2>Overview</h2>
+        <div class="bots-grid">
+          <div class="bot-card" id="aiCard">
+            <div class="bot-header">
+              <div class="bot-name"><span class="bot-icon">🤖</span><h2>AI Bot</h2></div>
+              <span class="status-badge" id="aiStatus"><%= ai?.status || 'unknown' %></span>
+            </div>
+            <div class="bot-body">
+              <div class="stat-row"><span class="stat-label">Servers</span><span class="stat-value" id="aiGuilds"><%= ai?.guilds ?? '—' %></span></div>
+              <div class="stat-row"><span class="stat-label">Latency</span><span class="stat-value" id="aiLatency"><%= ai?.latency != null ? ai.latency + 'ms' : '—' %></span></div>
+              <div class="stat-row"><span class="stat-label">Model</span><span class="stat-value" id="aiModel"><%= ai?.model || '—' %></span></div>
+              <div class="stat-row"><span class="stat-label">Uptime</span><span class="stat-value" id="aiUptime"><%= ai?.uptime ? fmt(ai.uptime) : '—' %></span></div>
+            </div>
+            <div class="bot-footer" id="aiFooter"><%= ai?.ready ? 'Operational' : (ai ? 'Connecting...' : 'No connection') %></div>
+          </div>
+          <div class="bot-card" id="musicCard">
+            <div class="bot-header">
+              <div class="bot-name"><span class="bot-icon">🎵</span><h2>Music Bot</h2></div>
+              <span class="status-badge" id="musicStatus"><%= music?.status || 'unknown' %></span>
+            </div>
+            <div class="bot-body">
+              <div class="stat-row"><span class="stat-label">Servers</span><span class="stat-value" id="musicGuilds"><%= music?.guilds ?? '—' %></span></div>
+              <div class="stat-row"><span class="stat-label">Latency</span><span class="stat-value" id="musicLatency"><%= music?.latency != null ? music.latency + 'ms' : '—' %></span></div>
+              <div class="stat-row"><span class="stat-label">Active Players</span><span class="stat-value" id="musicPlaying"><%= music?.playingCount ?? '—' %></span></div>
+              <div class="stat-row"><span class="stat-label">Lavalink</span><span class="stat-value" id="musicLavalink"><%= music?.lavalinkConnected ? 'Connected' : 'Disconnected' %></span></div>
+              <div class="stat-row"><span class="stat-label">Uptime</span><span class="stat-value" id="musicUptime"><%= music?.uptime ? fmt(music.uptime) : '—' %></span></div>
+            </div>
+            <div class="bot-footer" id="musicFooter"><%= music?.ready ? 'Operational' : (music ? 'Connecting...' : 'No connection') %></div>
+          </div>
+        </div>
+        <div class="section-card">
+          <h3>Active Music Sessions</h3>
+          <div class="sessions-list" id="sessionsList">
+            <% if (music?.activeGuilds?.length) { %>
+              <% music.activeGuilds.forEach(g => { %>
+                <div class="session-item">
+                  <span class="session-guild"><%= g.guildId %></span>
+                  <span class="session-status <%= g.playing ? 'playing' : 'paused' %>"><%= g.playing ? '▶ Playing' : '⏸ Paused' %></span>
+                  <% if (g.current) { %><span class="session-track"><%= g.current.title %></span><span class="session-duration"><%= g.current.duration %></span><% } %>
+                  <span class="session-queue"><%= g.queueLength %> in queue</span>
+                </div>
+              <% }); %>
+            <% } else { %>
+              <div class="session-item empty">No active music sessions</div>
+            <% } %>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-servers">
+        <h2>Servers</h2>
+        <div class="bot-selector">
+          <button class="bot-tab-btn active" data-bot="ai">🤖 AI Bot</button>
+          <button class="bot-tab-btn" data-bot="music">🎵 Music Bot</button>
+        </div>
+        <div id="aiGuildsList" class="guilds-list"></div>
+        <div id="musicGuildsList" class="guilds-list hidden"></div>
+      </div>
+
+      <div class="tab-content" id="tab-music">
+        <h2>Music Players</h2>
+        <div class="section-card">
+          <div class="toolbar">
+            <button class="btn btn-sm" id="refreshPlayers">🔄 Refresh</button>
+          </div>
+          <div id="playersList" class="players-list">
+            <div class="session-item empty">No active players</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-settings">
+        <h2>Settings</h2>
+        <div class="settings-grid">
+          <div class="section-card">
+            <h3>🤖 AI Bot</h3>
+            <div class="setting-row">
+              <label>Model</label>
+              <input type="text" id="aiModelInput" placeholder="gpt-4o">
+            </div>
+            <div class="setting-row">
+              <label>Temperature</label>
+              <input type="number" id="aiTempInput" step="0.1" min="0" max="2" placeholder="0.7">
+            </div>
+            <div class="setting-row">
+              <label>Max Tokens</label>
+              <input type="number" id="aiTokensInput" min="1" placeholder="1024">
+            </div>
+            <div class="setting-row">
+              <label>System Prompt</label>
+              <textarea id="aiPromptInput" rows="3" placeholder="System prompt..."></textarea>
+            </div>
+            <button class="btn" id="aiSettingsSave">Save AI Settings</button>
+            <span id="aiSettingsStatus" class="save-status"></span>
+          </div>
+          <div class="section-card">
+            <h3>🎵 Music Bot</h3>
+            <div class="setting-row">
+              <label>Prefix</label>
+              <input type="text" id="musicPrefixInput" placeholder="!">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-invite">
+        <h2>Invite Links</h2>
+        <div class="invite-grid">
+          <div class="section-card">
+            <h3>🤖 AI Bot</h3>
+            <% if (aiInvite) { %>
+              <a href="<%= aiInvite %>" target="_blank" class="invite-btn">Invite AI Bot</a>
+              <p class="invite-url"><%= aiInvite %></p>
+            <% } else { %>
+              <p class="text-muted">No invite URL configured (set <code>AI_INVITE</code> env var)</p>
+            <% } %>
+          </div>
+          <div class="section-card">
+            <h3>🎵 Music Bot</h3>
+            <% if (musicInvite) { %>
+              <a href="<%= musicInvite %>" target="_blank" class="invite-btn">Invite Music Bot</a>
+              <p class="invite-url"><%= musicInvite %></p>
+            <% } else { %>
+              <p class="text-muted">No invite URL configured (set <code>MUSIC_INVITE</code> env var)</p>
+            <% } %>
+          </div>
+        </div>
+        <div class="section-card">
+          <h3>How to create invite links</h3>
+          <ol class="text-muted">
+            <li>Go to <a href="https://discord.com/developers/applications" target="_blank">Discord Developer Portal</a></li>
+            <li>Select your bot application</li>
+            <li>Go to <strong>OAuth2 → URL Generator</strong></li>
+            <li>Check <strong>bot</strong> scope + required permissions</li>
+            <li>Copy the generated URL and set it as <code>AI_INVITE</code> or <code>MUSIC_INVITE</code> env var</li>
+          </ol>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const REFRESH_INTERVAL = <%= refreshInterval %> * 1000;
+
+    function fmt(seconds) {
+      const d = Math.floor(seconds / 86400), h = Math.floor((seconds % 86400) / 3600), m = Math.floor((seconds % 3600) / 60), s = Math.floor(seconds % 60);
+      return [d && d+'d', h && h+'h', m && m+'m', s+'s'].filter(Boolean).join(' ');
+    }
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    document.querySelectorAll('.bot-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.bot-tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.bot + 'GuildsList').classList.remove('hidden');
+        document.querySelectorAll('.guilds-list').forEach(l => {
+          if (l.id !== btn.dataset.bot + 'GuildsList') l.classList.add('hidden');
+        });
+      });
+    });
+
+    async function fetchData(path) {
+      try {
+        const res = await fetch(path);
+        return res.ok ? await res.json() : null;
+      } catch { return null; }
+    }
+
+    async function postData(path, body) {
+      try {
+        const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        return res.ok ? await res.json() : null;
+      } catch { return null; }
+    }
+
+    function updateCards(ai, music) {
+      for (const [p, d] of [['ai', ai], ['music', music]]) {
+        const statusEl = document.getElementById(p + 'Status');
+        if (!d) {
+          statusEl.textContent = 'offline';
+          statusEl.className = 'status-badge offline';
+          document.getElementById(p + 'Footer').textContent = 'No connection';
+          return;
+        }
+        statusEl.textContent = d.status;
+        statusEl.className = 'status-badge ' + (d.ready ? 'online' : 'connecting');
+        document.getElementById(p + 'Guilds').textContent = d.guilds ?? '—';
+        document.getElementById(p + 'Latency').textContent = d.latency != null ? d.latency + 'ms' : '—';
+        document.getElementById(p + 'Uptime').textContent = d.uptime ? fmt(d.uptime) : '—';
+        document.getElementById(p + 'Footer').textContent = d.ready ? 'Operational' : 'Connecting...';
+        if (document.getElementById(p + 'Model')) document.getElementById(p + 'Model').textContent = d.model || '—';
+        if (document.getElementById(p + 'Playing')) document.getElementById(p + 'Playing').textContent = d.playingCount ?? '—';
+        if (document.getElementById(p + 'Lavalink')) document.getElementById(p + 'Lavalink').textContent = d.lavalinkConnected ? 'Connected' : 'Disconnected';
+      }
+    }
+
+    function updateSessions(music) {
+      const list = document.getElementById('sessionsList');
+      if (!music?.activeGuilds?.length) { list.innerHTML = '<div class="session-item empty">No active music sessions</div>'; return; }
+      list.innerHTML = music.activeGuilds.map(g => '<div class="session-item"><span class="session-guild">' + esc(g.guildId) + '</span><span class="session-status ' + (g.playing ? 'playing' : 'paused') + '">' + (g.playing ? '▶ Playing' : '⏸ Paused') + '</span>' + (g.current ? '<span class="session-track">' + esc(g.current.title) + '</span><span class="session-duration">' + g.current.duration + '</span>' : '') + '<span class="session-queue">' + g.queueLength + ' in queue</span></div>').join('');
+    }
+
+    async function refreshOverview() {
+      const data = await fetchData('/api/dashboard');
+      if (data) { updateCards(data.ai, data.music); updateSessions(data.music); }
+      document.getElementById('lastUpdate').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+    }
+
+    async function loadGuilds() {
+      for (const bot of ['ai', 'music']) {
+        const data = await fetchData('/api/' + bot + '/guilds');
+        const list = document.getElementById(bot + 'GuildsList');
+        if (!data?.guilds) { list.innerHTML = '<div class="session-item empty">No data</div>'; continue; }
+        list.innerHTML = '<div class="guild-count">' + data.count + ' servers' + (data.bot ? ' — ' + esc(data.bot.tag) : '') + '</div>' +
+          data.guilds.map(g => '<div class="guild-item"><span class="guild-name">' + esc(g.name) + '</span><span class="guild-id">' + g.id + '</span><span class="guild-members">' + g.memberCount + ' members</span></div>').join('');
+      }
+    }
+
+    async function loadPlayers() {
+      const data = await fetchData('/api/music/players');
+      const list = document.getElementById('playersList');
+      if (!data?.players?.length) { list.innerHTML = '<div class="session-item empty">No active players</div>'; return; }
+      list.innerHTML = data.players.map(p => '<div class="player-card"><div class="player-header"><span class="player-guild">' + esc(p.guildId) + '</span><span class="session-status ' + (p.playing ? 'playing' : 'paused') + '">' + (p.playing ? '▶ Playing' : '⏸ Paused') + '</span></div>' +
+        (p.current ? '<div class="player-track">🎵 ' + esc(p.current.title) + ' <span class="text-muted">' + p.current.duration + '</span></div>' : '') +
+        '<div class="player-controls"><button class="btn btn-sm" onclick="playerAction(\'skip\',\'' + p.guildId + '\')">⏭ Skip</button>' +
+        '<button class="btn btn-sm" onclick="playerAction(\'stop\',\'' + p.guildId + '\')">⏹ Stop</button>' +
+        '<button class="btn btn-sm" onclick="playerAction(\'loop\',\'' + p.guildId + '\',' + !p.loop + ')">🔁 Loop</button>' +
+        '<input type="range" min="0" max="100" value="' + p.volume + '" class="vol-slider" onchange="playerAction(\'volume\',\'' + p.guildId + '\',this.value)"> <span class="vol-label">' + p.volume + '%</span>' +
+        '</div><div class="player-footer">' + p.queueLength + ' songs in queue | Volume: ' + p.volume + '%</div></div>').join('');
+    }
+
+    async function playerAction(action, guildId, value) {
+      const body = { guildId };
+      if (value !== undefined) body.volume = parseInt(value);
+      if (action === 'loop') body.loop = value;
+      await postData('/api/music/player/' + action, body);
+      setTimeout(loadPlayers, 500);
+    }
+
+    async function loadSettings() {
+      const aiData = await fetchData('/api/ai/settings');
+      if (aiData) {
+        document.getElementById('aiModelInput').value = aiData.model || '';
+        document.getElementById('aiTempInput').value = aiData.temperature || '';
+        document.getElementById('aiTokensInput').value = aiData.maxTokens || '';
+        document.getElementById('aiPromptInput').value = aiData.systemPrompt || '';
+      }
+    }
+
+    document.getElementById('aiSettingsSave')?.addEventListener('click', async () => {
+      const body = {
+        model: document.getElementById('aiModelInput').value,
+        temperature: parseFloat(document.getElementById('aiTempInput').value),
+        maxTokens: parseInt(document.getElementById('aiTokensInput').value),
+        systemPrompt: document.getElementById('aiPromptInput').value,
+      };
+      const res = await postData('/api/ai/settings', body);
+      document.getElementById('aiSettingsStatus').textContent = res?.ok ? '✓ Saved' : '✗ Failed';
+      setTimeout(() => document.getElementById('aiSettingsStatus').textContent = '', 3000);
+    });
+
+    document.getElementById('refreshPlayers')?.addEventListener('click', loadPlayers);
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+        if (tab === 'servers') loadGuilds();
+        if (tab === 'music') loadPlayers();
+        if (tab === 'settings') loadSettings();
+      });
+    });
+
+    refreshOverview();
+    setInterval(refreshOverview, REFRESH_INTERVAL);
+  </script>
+</body>
+</html>
