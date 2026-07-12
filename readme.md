@@ -50,7 +50,8 @@ Before starting, make sure you have the following installed:
 2. **Configure Environment Variables**
    ```bash
       cp .env.example .env
-Edit `PASSWORD` and `API` to whatever you want
+>Edit `PASSWORD` and `API` to whatever you want
+
 3. **Install and run**
    ```bash
       npm install && node src/index.js
